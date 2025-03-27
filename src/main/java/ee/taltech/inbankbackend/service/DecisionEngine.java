@@ -1,5 +1,7 @@
 package ee.taltech.inbankbackend.service;
 
+import com.github.vladislavgoltjajev.personalcode.exception.PersonalCodeException;
+import com.github.vladislavgoltjajev.personalcode.locale.estonia.EstonianPersonalCodeParser;
 import com.github.vladislavgoltjajev.personalcode.locale.estonia.EstonianPersonalCodeValidator;
 import ee.taltech.inbankbackend.config.DecisionEngineConstants;
 import ee.taltech.inbankbackend.exceptions.InvalidLoanAmountException;
@@ -7,6 +9,8 @@ import ee.taltech.inbankbackend.exceptions.InvalidLoanPeriodException;
 import ee.taltech.inbankbackend.exceptions.InvalidPersonalCodeException;
 import ee.taltech.inbankbackend.exceptions.NoValidLoanException;
 import org.springframework.stereotype.Service;
+
+import java.time.Period;
 
 /**
  * A service class that provides a method for calculating an approved loan amount and period for a customer.
@@ -18,6 +22,7 @@ public class DecisionEngine {
 
     // Used to check for the validity of the presented ID code.
     private final EstonianPersonalCodeValidator validator = new EstonianPersonalCodeValidator();
+    private final EstonianPersonalCodeParser parser = new EstonianPersonalCodeParser(); // Used to get age
     private int creditModifier = 0;
 
     /**
@@ -40,6 +45,7 @@ public class DecisionEngine {
             NoValidLoanException {
         try {
             verifyInputs(personalCode, loanAmount, loanPeriod);
+            verifyAge(personalCode);
         } catch (Exception e) {
             return new Decision(null, null, e.getMessage());
         }
@@ -95,6 +101,20 @@ public class DecisionEngine {
         }
 
         return DecisionEngineConstants.SEGMENT_3_CREDIT_MODIFIER;
+    }
+
+    private void verifyAge(String personalCode) throws NoValidLoanException, InvalidPersonalCodeException {
+        Period age;
+        try {
+            age = parser.getAge(personalCode);
+        } catch (PersonalCodeException e) {
+            throw new InvalidPersonalCodeException("Invalid personal ID code!");
+        }
+        if (age.getYears() < 18
+                || age.getYears() > DecisionEngineConstants.BALTIC_EXPECTED_LIFETIME
+                - DecisionEngineConstants.MAXIMUM_LOAN_PERIOD) {
+            throw new NoValidLoanException("The loan cannot be issued due to age restrictions.");
+        }
     }
 
     /**

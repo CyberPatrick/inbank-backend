@@ -108,5 +108,11 @@ class DecisionEngineTest {
                 () -> decisionEngine.calculateApprovedLoan(debtorPersonalCode, 10000L, 60));
     }
 
+    @Test
+    void testInvalidAge() {
+        NoValidLoanException exception = assertThrows(NoValidLoanException.class,
+                () -> decisionEngine.calculateApprovedLoan("61412020255", 3000L, 16));
+        assertEquals("The loan cannot be issued due to age restrictions.", exception.getMessage());
+    }
 }
 
